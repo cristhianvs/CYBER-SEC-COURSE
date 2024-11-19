@@ -34,6 +34,10 @@ interface PasswordTipsStepProps {
   onPasswordChange: (password: string) => void;
 }
 
+interface PasswordSharingStepProps {
+  onFeedback: (isPositive: boolean) => void;
+}
+
 // Mantener los componentes existentes (Step, InfoCard, IntroductionStep, etc.)
 const Step: React.FC<StepProps> = ({ title, content }) => (
   <div className="space-y-6">
@@ -103,10 +107,10 @@ const ChoosePasswordStep: React.FC<ChoosePasswordStepProps> = ({ onFeedback }) =
   );
 };
 
-const PasswordTipsStep: React.FC<PasswordTipsStepProps> = ({ 
-  showPassword, 
-  toggleShowPassword, 
-  onPasswordChange 
+const PasswordTipsStep: React.FC<PasswordTipsStepProps> = ({
+  showPassword,
+  toggleShowPassword,
+  onPasswordChange,
 }) => (
   <div className="space-y-4">
     <div className="grid grid-cols-2 gap-4">
@@ -133,6 +137,34 @@ const PasswordTipsStep: React.FC<PasswordTipsStepProps> = ({
   </div>
 );
 
+const PasswordSharingStep: React.FC<PasswordSharingStepProps> = ({ onFeedback }) => {
+  const options = [
+    { text: 'En un post-it pegado en tu monitor', isCorrect: false },
+    { text: 'Compartirla con tu supervisor por si la necesitas', isCorrect: false },
+    { text: 'Guardarla en un gestor de contraseñas seguro', isCorrect: true },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-gray-700 mb-4">
+        Las contraseñas son de uso individual y no deben compartirse bajo ninguna circunstancia. ¿Dónde debes guardar tu contraseña?
+      </p>
+      <div className="space-y-2">
+        {options.map((option, index) => (
+          <Button
+            key={index}
+            className="w-full justify-start text-left p-4"
+            variant="outline"
+            onClick={() => onFeedback(option.isCorrect)}
+          >
+            {option.text}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 interface Step {
   title: string;
   content: React.ReactNode;
@@ -140,16 +172,16 @@ interface Step {
 
 const PasswordModule: React.FC = () => {
   // Agregar el hook del contexto del curso
-  const { updateProgress } = useCourse();
+  const { updateProgress, score, setScore } = useCourse();
 
   const [currentStep, setCurrentStep] = useState<number>(0);
-  const [score, setScore] = useState<number>(0);
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string>('');
   const [feedbackIsPositive, setFeedbackIsPositive] = useState<boolean>(true);
   const [passwordStrength, setPasswordStrength] = useState<number>(0);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isModuleCompleted, setIsModuleCompleted] = useState<boolean>(false);
+  const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
 
   const steps: Step[] = [
     {
@@ -162,12 +194,17 @@ const PasswordModule: React.FC = () => {
         <ChoosePasswordStep
           onFeedback={(isPositive, security) => {
             setShowFeedback(true);
-            if (isPositive) {
+            if (isPositive && !pointsAwarded['choose_password']) {
               setScore(score + 10);
-              setFeedbackMessage("¡Excelente elección! Esta contraseña combina longitud, caracteres especiales y complejidad.");
+              setPointsAwarded({ ...pointsAwarded, choose_password: true });
+              setFeedbackMessage(
+                "¡Excelente elección! Esta contraseña combina longitud, caracteres especiales y complejidad."
+              );
               setFeedbackIsPositive(true);
             } else {
-              setFeedbackMessage("Esta contraseña no es lo suficientemente segura. Intenta con una que combine más elementos.");
+              setFeedbackMessage(
+                "Esta contraseña no es lo suficientemente segura. Intenta con una que combine más elementos."
+              );
               setFeedbackIsPositive(false);
             }
           }}
@@ -189,15 +226,41 @@ const PasswordModule: React.FC = () => {
 
             setPasswordStrength(strength);
             setFeedbackMessage(
-              strength === 4 ? "¡Excelente contraseña!" :
-              strength === 3 ? "Buena contraseña, pero puede mejorar" :
-              "Tu contraseña necesita más elementos de seguridad"
+              strength === 4
+                ? "¡Excelente contraseña!"
+                : strength === 3
+                ? "Buena contraseña, pero puede mejorar"
+                : "Tu contraseña necesita más elementos de seguridad"
             );
             setFeedbackIsPositive(strength >= 3);
             setShowFeedback(true);
 
-            if (strength >= 3) {
+            if (strength >= 3 && !pointsAwarded['password_tips']) {
               setScore(score + 20);
+              setPointsAwarded({ ...pointsAwarded, password_tips: true });
+            }
+          }}
+        />
+      ),
+    },
+    {
+      title: "No Compartas tu Contraseña",
+      content: (
+        <PasswordSharingStep
+          onFeedback={(isPositive) => {
+            setShowFeedback(true);
+            if (isPositive && !pointsAwarded['password_sharing']) {
+              setScore(score + 20);
+              setPointsAwarded({ ...pointsAwarded, password_sharing: true });
+              setFeedbackMessage(
+                "¡Correcto! Las contraseñas deben guardarse en un gestor de contraseñas seguro y nunca compartirse."
+              );
+              setFeedbackIsPositive(true);
+            } else {
+              setFeedbackMessage(
+                "Esa no es la mejor opción. Recuerda que las contraseñas son personales y no deben compartirse."
+              );
+              setFeedbackIsPositive(false);
             }
           }}
         />
@@ -205,15 +268,27 @@ const PasswordModule: React.FC = () => {
     },
   ];
 
+  // Reiniciar estados al cambiar de paso
+  useEffect(() => {
+    setShowFeedback(false);
+    setFeedbackMessage('');
+    setFeedbackIsPositive(true);
+    setPasswordStrength(0);
+  }, [currentStep]);
+
   // Verificar la finalización del módulo
   useEffect(() => {
-    const isCompleted = currentStep === steps.length - 1 && passwordStrength >= 3;
+    const isCompleted =
+      currentStep === steps.length - 1 &&
+      pointsAwarded['choose_password'] &&
+      pointsAwarded['password_tips'] &&
+      pointsAwarded['password_sharing'];
     setIsModuleCompleted(isCompleted);
-    
+
     if (isCompleted) {
       updateProgress(1, { completed: true, score: score });
     }
-  }, [currentStep, passwordStrength, score, updateProgress]);
+  }, [currentStep, pointsAwarded, score, updateProgress]);
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
@@ -243,7 +318,11 @@ const PasswordModule: React.FC = () => {
       <CardContent>
         <Step title={steps[currentStep].title} content={steps[currentStep].content} />
         {showFeedback && (
-          <div className={`mt-4 p-4 rounded-lg ${feedbackIsPositive ? 'bg-green-100' : 'bg-red-100'}`}>
+          <div
+            className={`mt-4 p-4 rounded-lg ${
+              feedbackIsPositive ? 'bg-green-100' : 'bg-red-100'
+            }`}
+          >
             {feedbackMessage}
           </div>
         )}
@@ -253,12 +332,10 @@ const PasswordModule: React.FC = () => {
           onNext={() => {
             if (currentStep < steps.length - 1) {
               setCurrentStep(currentStep + 1);
-              setShowFeedback(false);
             }
           }}
           onPrevious={() => {
             setCurrentStep(Math.max(0, currentStep - 1));
-            setShowFeedback(false);
           }}
           isCompleted={isModuleCompleted}
         />

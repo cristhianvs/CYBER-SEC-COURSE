@@ -138,11 +138,12 @@ const PhishingEmail: React.FC<PhishingEmailProps> = ({ email, onDecision }) => (
   </div>
 );
 
-const DetectionStep: React.FC<{ onScore: (points: number) => void }> = ({ onScore }) => {
+const DetectionStep: React.FC<{ onScore: (points: number, actionKey: string) => void }> = ({ onScore }) => {
   const [currentEmail, setCurrentEmail] = useState(0);
   const [feedback, setFeedback] = useState<string>('');
   const [feedbackType, setFeedbackType] = useState<'success' | 'error' | null>(null);
   const [hasCompletedAllEmails, setHasCompletedAllEmails] = useState(false);
+  const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
 
   const emails: EmailExample[] = [
     {
@@ -166,13 +167,14 @@ const DetectionStep: React.FC<{ onScore: (points: number) => void }> = ({ onScor
   const handleDecision = (isPhishingGuess: boolean) => {
     const email = emails[currentEmail];
     const correct = isPhishingGuess === email.isPhishing;
-    
-    if (correct) {
+
+    if (correct && !pointsAwarded[`email_${email.id}`]) {
       setFeedback("¡Correcto! " + (email.isPhishing ? 
         `Elementos sospechosos: ${email.suspiciousElements.join(", ")}` : 
         "Este es un correo legítimo."));
       setFeedbackType('success');
-      onScore(10);
+      onScore(10, `email_${email.id}`);
+      setPointsAwarded({ ...pointsAwarded, [`email_${email.id}`]: true });
     } else {
       setFeedback("Incorrecto. " + (email.isPhishing ?
         `Este era un correo fraudulento. Elementos sospechosos: ${email.suspiciousElements.join(", ")}` :
@@ -254,11 +256,10 @@ const PhishingTipsStep: React.FC = () => {
   );
 };
 
-const FinalQuizStep: React.FC<{ onScore: (points: number) => void }> = ({ onScore }) => {
+const FinalQuizStep: React.FC<{ onScore: (points: number, actionKey: string) => void }> = ({ onScore }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [score, setScore] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [allQuestionsAnswered, setAllQuestionsAnswered] = useState(false);
+  const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
 
   const questions = [
     {
@@ -274,16 +275,18 @@ const FinalQuizStep: React.FC<{ onScore: (points: number) => void }> = ({ onScor
   ];
 
   const handleAnswer = (selectedOption: number) => {
-    if (selectedOption === questions[currentQuestion].correct) {
-      setScore(score + 1);
-      onScore(20);
+    const question = questions[currentQuestion];
+    const actionKey = `question_${currentQuestion}`;
+
+    if (selectedOption === question.correct && !pointsAwarded[actionKey]) {
+      onScore(20, actionKey);
+      setPointsAwarded({ ...pointsAwarded, [actionKey]: true });
     }
-    
+
     if (currentQuestion + 1 < questions.length) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
       setShowResults(true);
-      setAllQuestionsAnswered(true);
     }
   };
 
@@ -310,7 +313,6 @@ const FinalQuizStep: React.FC<{ onScore: (points: number) => void }> = ({ onScor
           <Award className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h3 className="font-bold text-xl mb-2">¡Felicitaciones!</h3>
           <p>Has completado el módulo de Detectives del Phishing</p>
-          <p className="text-lg font-bold mt-2">Puntuación final: {score} puntos</p>
         </div>
       )}
     </div>
@@ -318,13 +320,16 @@ const FinalQuizStep: React.FC<{ onScore: (points: number) => void }> = ({ onScor
 };
 
 const PhishingModule: React.FC = () => {
-  const { updateProgress } = useCourse();
+  const { updateProgress, score, setScore } = useCourse();
   const [currentStep, setCurrentStep] = useState<number>(0);
-  const [score, setScore] = useState<number>(0);
   const [isModuleCompleted, setIsModuleCompleted] = useState<boolean>(false);
+  const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
 
-  const handleScore = (points: number) => {
-    setScore(prevScore => prevScore + points);
+  const handleScore = (points: number, actionKey: string) => {
+    if (!pointsAwarded[actionKey]) {
+      setScore(score + points);
+      setPointsAwarded({ ...pointsAwarded, [actionKey]: true });
+    }
   };
 
   interface Step {
@@ -351,15 +356,23 @@ const PhishingModule: React.FC = () => {
     },
   ];
 
+  // Reiniciar estados al cambiar de paso
+  useEffect(() => {
+    // Aquí puedes reiniciar cualquier estado necesario al cambiar de paso
+  }, [currentStep]);
+
   // Verificar la finalización del módulo
   useEffect(() => {
-    const isCompleted = currentStep === steps.length - 1 && score >= 40;
+    const isCompleted =
+      currentStep === steps.length - 1 &&
+      Object.keys(pointsAwarded).length >= 3; // Ajusta el número según tus acciones
+
     setIsModuleCompleted(isCompleted);
-    
+
     if (isCompleted) {
       updateProgress(2, { completed: true, score: score });
     }
-  }, [currentStep, score, updateProgress, steps.length]);
+  }, [currentStep, pointsAwarded, score, updateProgress]);
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
