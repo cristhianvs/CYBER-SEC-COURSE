@@ -36,5 +36,11 @@ export interface ModuleStatus {
       title: "Detectives del Phishing",
       description: "Identifica y protégete contra ataques de phishing",
       requiredScore: 70
+    },
+    {
+      id: 3,
+      title: "Resistencia Contra el Malware",
+      description: "Reconoce y previene infecciones por malware",
+      requiredScore: 70
     }
   ];

@@ -4,6 +4,7 @@
 import React from 'react';
 import PasswordModule from '../modules/PasswordModule';
 import PhishingModule from '../modules/PhishingModule';
+import MalwareModule from '../modules/MalwareModule';
 import { useCourse } from '@/lib/context/CourseContext';
 
 export const Course: React.FC = () => {
@@ -15,6 +16,8 @@ export const Course: React.FC = () => {
         return <PasswordModule />;
       case 2:
         return <PhishingModule />;
+      case 3:
+        return <MalwareModule />;
       default:
         return <div>Módulo no encontrado</div>;
     }

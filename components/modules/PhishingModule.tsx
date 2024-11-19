@@ -365,7 +365,7 @@ const PhishingModule: React.FC = () => {
   useEffect(() => {
     const isCompleted =
       currentStep === steps.length - 1 &&
-      Object.keys(pointsAwarded).length >= 3; // Ajusta el número según tus acciones
+      Object.keys(pointsAwarded).length >= 2; // Ajusta el número según tus acciones
 
     setIsModuleCompleted(isCompleted);
 
@@ -403,7 +403,7 @@ const PhishingModule: React.FC = () => {
         <Step title={steps[currentStep].title} content={steps[currentStep].content} />
         <ModuleNavigation
           currentModule={2}
-          totalModules={2}
+          totalModules={3}
           onNext={() => {
             if (currentStep < steps.length - 1) {
               setCurrentStep(currentStep + 1);
