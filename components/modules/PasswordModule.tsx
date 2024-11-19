@@ -328,7 +328,7 @@ const PasswordModule: React.FC = () => {
         )}
         <ModuleNavigation
           currentModule={1}
-          totalModules={2}
+          totalModules={3}
           onNext={() => {
             if (currentStep < steps.length - 1) {
               setCurrentStep(currentStep + 1);
