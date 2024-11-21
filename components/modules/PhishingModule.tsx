@@ -138,7 +138,10 @@ const PhishingEmail: React.FC<PhishingEmailProps> = ({ email, onDecision }) => (
   </div>
 );
 
-const DetectionStep: React.FC<{ onScore: (points: number, actionKey: string) => void }> = ({ onScore }) => {
+const DetectionStep: React.FC<{ 
+  onScore: (points: number, actionKey: string) => void; 
+  onAnswered: () => void; 
+}> = ({ onScore, onAnswered }) => {
   const [currentEmail, setCurrentEmail] = useState(0);
   const [feedback, setFeedback] = useState<string>('');
   const [feedbackType, setFeedbackType] = useState<'success' | 'error' | null>(null);
@@ -164,21 +167,37 @@ const DetectionStep: React.FC<{ onScore: (points: number, actionKey: string) => 
     }
   ];
 
+  useEffect(() => {
+    // Cuando se completan todos los correos, notificamos que el paso está completado
+    if (hasCompletedAllEmails) {
+      console.log('Todos los correos completados, notificando...'); // Debug
+      onAnswered();
+    }
+  }, [hasCompletedAllEmails, onAnswered]);
+
   const handleDecision = (isPhishingGuess: boolean) => {
     const email = emails[currentEmail];
     const correct = isPhishingGuess === email.isPhishing;
-
+    
     if (correct && !pointsAwarded[`email_${email.id}`]) {
-      setFeedback("¡Correcto! " + (email.isPhishing ? 
-        `Elementos sospechosos: ${email.suspiciousElements.join(", ")}` : 
-        "Este es un correo legítimo."));
+      setFeedback(
+        `¡Correcto! ${
+          email.isPhishing
+            ? `Elementos sospechosos: ${email.suspiciousElements.join(", ")}`
+            : "Este es un correo legítimo."
+        }`
+      );
       setFeedbackType('success');
       onScore(10, `email_${email.id}`);
-      setPointsAwarded({ ...pointsAwarded, [`email_${email.id}`]: true });
+      setPointsAwarded(prev => ({ ...prev, [`email_${email.id}`]: true }));
     } else {
-      setFeedback("Incorrecto. " + (email.isPhishing ?
-        `Este era un correo fraudulento. Elementos sospechosos: ${email.suspiciousElements.join(", ")}` :
-        "Este era un correo legítimo."));
+      setFeedback(
+        `Incorrecto. ${
+          email.isPhishing
+            ? `Este era un correo fraudulento. Elementos sospechosos: ${email.suspiciousElements.join(", ")}`
+            : "Este era un correo legítimo."
+        }`
+      );
       setFeedbackType('error');
     }
 
@@ -188,35 +207,36 @@ const DetectionStep: React.FC<{ onScore: (points: number, actionKey: string) => 
         setFeedback('');
         setFeedbackType(null);
       } else {
+        console.log('Último correo completado, marcando como completado...'); // Debug
         setHasCompletedAllEmails(true);
       }
     }, 2000);
   };
 
+  if (hasCompletedAllEmails) {
+    return (
+      <div className="text-center p-6">
+        <Award className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+        <h3 className="font-bold text-xl mb-2">¡Excelente trabajo!</h3>
+        <p>Has completado todos los ejercicios de detección</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {!hasCompletedAllEmails ? (
-        <>
-          <p className="text-gray-700 mb-4">
-            Analiza los siguientes correos y decide si son seguros o sospechosos:
-          </p>
-          <PhishingEmail 
-            email={emails[currentEmail]} 
-            onDecision={handleDecision}
-          />
-          {feedbackType && (
-            <div className={`p-4 rounded-lg ${
-              feedbackType === 'success' ? 'bg-green-100' : 'bg-red-100'
-            }`}>
-              {feedback}
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center p-6">
-          <Award className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h3 className="font-bold text-xl mb-2">¡Excelente trabajo!</h3>
-          <p>Has completado todos los ejercicios de detección</p>
+      <p className="text-gray-700 mb-4">
+        Analiza los siguientes correos y decide si son seguros o sospechosos:
+      </p>
+      <PhishingEmail 
+        email={emails[currentEmail]} 
+        onDecision={handleDecision}
+      />
+      {feedbackType && (
+        <div className={`p-4 rounded-lg ${
+          feedbackType === 'success' ? 'bg-green-100' : 'bg-red-100'
+        }`}>
+          {feedback}
         </div>
       )}
     </div>
@@ -256,7 +276,10 @@ const PhishingTipsStep: React.FC = () => {
   );
 };
 
-const FinalQuizStep: React.FC<{ onScore: (points: number, actionKey: string) => void }> = ({ onScore }) => {
+const FinalQuizStep: React.FC<{ 
+  onScore: (points: number, actionKey: string) => void;
+  onAnswered: () => void;
+}> = ({ onScore, onAnswered }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
@@ -274,6 +297,13 @@ const FinalQuizStep: React.FC<{ onScore: (points: number, actionKey: string) => 
     }
   ];
 
+  // Efecto para marcar como respondido cuando se muestran los resultados
+  useEffect(() => {
+    if (showResults) {
+      onAnswered();
+    }
+  }, [showResults, onAnswered]);
+
   const handleAnswer = (selectedOption: number) => {
     const question = questions[currentQuestion];
     const actionKey = `question_${currentQuestion}`;
@@ -282,6 +312,7 @@ const FinalQuizStep: React.FC<{ onScore: (points: number, actionKey: string) => 
       onScore(20, actionKey);
       setPointsAwarded({ ...pointsAwarded, [actionKey]: true });
     }
+    onAnswered(); // Marcar como respondido
 
     if (currentQuestion + 1 < questions.length) {
       setCurrentQuestion(currentQuestion + 1);
@@ -324,6 +355,7 @@ const PhishingModule: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isModuleCompleted, setIsModuleCompleted] = useState<boolean>(false);
   const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
+  const [currentStepAnswered, setCurrentStepAnswered] = useState<boolean>(false);
 
   const handleScore = (points: number, actionKey: string) => {
     if (!pointsAwarded[actionKey]) {
@@ -332,40 +364,58 @@ const PhishingModule: React.FC = () => {
     }
   };
 
-  interface Step {
-    title: string;
-    content: React.ReactNode;
-  }
+  // Manejador específico para marcar un paso como respondido
+  const handleStepAnswered = () => {
+    console.log('Paso marcado como respondido'); // Debug
+    setCurrentStepAnswered(true);
+  };
 
-  const steps: Step[] = [
+  const steps = [
     {
       title: "Introducción",
       content: <IntroductionStep />,
+      isInformative: true
     },
     {
       title: "Detecta el Phishing",
-      content: <DetectionStep onScore={handleScore} />,
+      content: (
+        <DetectionStep 
+          onScore={handleScore} 
+          onAnswered={handleStepAnswered}
+        />
+      )
     },
     {
       title: "Consejos de Seguridad",
       content: <PhishingTipsStep />,
+      isInformative: true
     },
     {
       title: "Evaluación Final",
-      content: <FinalQuizStep onScore={handleScore} />,
+      content: (
+        <FinalQuizStep 
+          onScore={handleScore}
+          onAnswered={handleStepAnswered}
+        />
+      )
     },
   ];
 
-  // Reiniciar estados al cambiar de paso
+  // Efecto para manejar secciones informativas
   useEffect(() => {
-    // Aquí puedes reiniciar cualquier estado necesario al cambiar de paso
+    if (steps[currentStep].isInformative) {
+      console.log('Sección informativa marcada como respondida'); // Debug
+      setCurrentStepAnswered(true);
+    } else {
+      setCurrentStepAnswered(false);
+    }
   }, [currentStep]);
 
-  // Verificar la finalización del módulo
+  // Efecto para verificar la finalización del módulo
   useEffect(() => {
     const isCompleted =
       currentStep === steps.length - 1 &&
-      Object.keys(pointsAwarded).length >= 2; // Ajusta el número según tus acciones
+      Object.keys(pointsAwarded).length >= 2;
 
     setIsModuleCompleted(isCompleted);
 
@@ -373,6 +423,26 @@ const PhishingModule: React.FC = () => {
       updateProgress(2, { completed: true, score: score });
     }
   }, [currentStep, pointsAwarded, score, updateProgress]);
+
+  // Manejador para el botón siguiente
+  const handleNext = () => {
+    console.log('Intentando avanzar al siguiente paso'); // Debug
+    console.log('Estado actual:', { currentStep, currentStepAnswered, isModuleCompleted }); // Debug
+    
+    if (currentStepAnswered) {
+      if (currentStep < steps.length - 1) {
+        setCurrentStep(prev => prev + 1);
+        setCurrentStepAnswered(false);
+      }
+    }
+  };
+
+  // Manejador para el botón anterior
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
@@ -400,19 +470,17 @@ const PhishingModule: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <Step title={steps[currentStep].title} content={steps[currentStep].content} />
+        <Step 
+          title={steps[currentStep].title} 
+          content={steps[currentStep].content}
+        />
         <ModuleNavigation
           currentModule={2}
           totalModules={3}
-          onNext={() => {
-            if (currentStep < steps.length - 1) {
-              setCurrentStep(currentStep + 1);
-            }
-          }}
-          onPrevious={() => {
-            setCurrentStep(Math.max(0, currentStep - 1));
-          }}
+          onNext={handleNext}
+          onPrevious={handlePrevious}
           isCompleted={isModuleCompleted}
+          currentStepAnswered={currentStepAnswered}
         />
       </CardContent>
     </Card>

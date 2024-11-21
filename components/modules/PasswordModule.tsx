@@ -182,6 +182,9 @@ const PasswordModule: React.FC = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isModuleCompleted, setIsModuleCompleted] = useState<boolean>(false);
   const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
+  // Añadir nuevo estado
+  const [currentStepAnswered, setCurrentStepAnswered] = useState<boolean>(false);
+
 
   const steps: Step[] = [
     {
@@ -201,11 +204,15 @@ const PasswordModule: React.FC = () => {
                 "¡Excelente elección! Esta contraseña combina longitud, caracteres especiales y complejidad."
               );
               setFeedbackIsPositive(true);
+              // Añadir esta línea
+              setCurrentStepAnswered(true);
             } else {
               setFeedbackMessage(
                 "Esta contraseña no es lo suficientemente segura. Intenta con una que combine más elementos."
               );
               setFeedbackIsPositive(false);
+              // Añadir esta línea también para marcar como respondido aunque sea incorrecto
+              setCurrentStepAnswered(true);
             }
           }}
         />
@@ -238,6 +245,8 @@ const PasswordModule: React.FC = () => {
             if (strength >= 3 && !pointsAwarded['password_tips']) {
               setScore(score + 20);
               setPointsAwarded({ ...pointsAwarded, password_tips: true });
+              // Añadir esta línea
+              setCurrentStepAnswered(true);
             }
           }}
         />
@@ -256,17 +265,25 @@ const PasswordModule: React.FC = () => {
                 "¡Correcto! Las contraseñas deben guardarse en un gestor de contraseñas seguro y nunca compartirse."
               );
               setFeedbackIsPositive(true);
+              // Añadir esta línea
+              setCurrentStepAnswered(true);
             } else {
               setFeedbackMessage(
                 "Esa no es la mejor opción. Recuerda que las contraseñas son personales y no deben compartirse."
               );
               setFeedbackIsPositive(false);
+              // Añadir esta línea también
+              setCurrentStepAnswered(true);
             }
           }}
         />
       ),
     },
   ];
+  // Añadir este useEffect junto a los otros
+  useEffect(() => {
+    setCurrentStepAnswered(currentStep === 0); // La introducción siempre está "respondida"
+  }, [currentStep]);
 
   // Reiniciar estados al cambiar de paso
   useEffect(() => {
@@ -330,7 +347,7 @@ const PasswordModule: React.FC = () => {
           currentModule={1}
           totalModules={3}
           onNext={() => {
-            if (currentStep < steps.length - 1) {
+            if (currentStep < steps.length - 1 && currentStepAnswered) {
               setCurrentStep(currentStep + 1);
             }
           }}
@@ -338,6 +355,7 @@ const PasswordModule: React.FC = () => {
             setCurrentStep(Math.max(0, currentStep - 1));
           }}
           isCompleted={isModuleCompleted}
+          currentStepAnswered={currentStepAnswered}
         />
       </CardContent>
     </Card>
