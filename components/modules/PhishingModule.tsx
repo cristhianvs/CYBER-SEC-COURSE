@@ -147,6 +147,7 @@ const DetectionStep: React.FC<{
   const [feedbackType, setFeedbackType] = useState<'success' | 'error' | null>(null);
   const [hasCompletedAllEmails, setHasCompletedAllEmails] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState<{ [key: string]: boolean }>({});
+  const [currentEmailAnswered, setCurrentEmailAnswered] = useState(false);
 
   const emails: EmailExample[] = [
     {
@@ -170,7 +171,7 @@ const DetectionStep: React.FC<{
   useEffect(() => {
     // Cuando se completan todos los correos, notificamos que el paso está completado
     if (hasCompletedAllEmails) {
-      console.log('Todos los correos completados, notificando...'); // Debug
+      console.log('Todos los correos completados, notificando...');
       onAnswered();
     }
   }, [hasCompletedAllEmails, onAnswered]);
@@ -200,17 +201,23 @@ const DetectionStep: React.FC<{
       );
       setFeedbackType('error');
     }
+    
+    // Marcar el correo actual como respondido
+    setCurrentEmailAnswered(true);
 
-    setTimeout(() => {
-      if (currentEmail < emails.length - 1) {
-        setCurrentEmail(currentEmail + 1);
-        setFeedback('');
-        setFeedbackType(null);
-      } else {
-        console.log('Último correo completado, marcando como completado...'); // Debug
-        setHasCompletedAllEmails(true);
-      }
-    }, 2000);
+    // Notificar al componente padre que se ha respondido
+    if (currentEmail === emails.length - 1) {
+      setHasCompletedAllEmails(true);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentEmailAnswered && currentEmail < emails.length - 1) {
+      setCurrentEmail(prev => prev + 1);
+      setFeedback('');
+      setFeedbackType(null);
+      setCurrentEmailAnswered(false);
+    }
   };
 
   if (hasCompletedAllEmails) {
@@ -228,6 +235,11 @@ const DetectionStep: React.FC<{
       <p className="text-gray-700 mb-4">
         Analiza los siguientes correos y decide si son seguros o sospechosos:
       </p>
+      <div className="mb-4">
+        <p className="text-sm text-gray-500">
+          Correo {currentEmail + 1} de {emails.length}
+        </p>
+      </div>
       <PhishingEmail 
         email={emails[currentEmail]} 
         onDecision={handleDecision}
@@ -237,6 +249,14 @@ const DetectionStep: React.FC<{
           feedbackType === 'success' ? 'bg-green-100' : 'bg-red-100'
         }`}>
           {feedback}
+        </div>
+      )}
+      {currentEmailAnswered && currentEmail < emails.length - 1 && (
+        <div className="flex justify-end mt-4">
+          <Button onClick={handleNext}>
+            Siguiente correo
+            <ArrowRight className="ml-2 w-4 h-4" />
+          </Button>
         </div>
       )}
     </div>
